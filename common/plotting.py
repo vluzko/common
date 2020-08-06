@@ -1,6 +1,6 @@
 import numpy as np
 
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde, norm
 from matplotlib import pyplot as plt
 
 from fire import Fire
@@ -14,20 +14,19 @@ def plot_two_gaussians():
     std_2 = 0.5
 
     y_1 = np.random.normal(mu_1, std_1, 1000)
-    y_2 = np.random.normal(mu_2, std_2, 1000)
 
     d_1 = gaussian_kde(y_1)
-    d_2 = gaussian_kde(y_2)
 
     plt.plot(x, d_1(x))
-    plt.plot(x, d_2(x))
+    plt.plot(x, norm.pdf(x, mu_2, std_2))
     plt.show()
 
 def subplots_pattern():
     x = np.arange(0, 1000)
     y = x * 2
-    _, ax = plt.subplot()
-    ax.plot(x, y)
+    _, ax = plt.subplots()
+    ax.plot(x, y, label='Example')
+    ax.legend()
     plt.show()
 
 
