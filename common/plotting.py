@@ -25,7 +25,7 @@ def subplots_pattern():
     x = np.arange(0, 1000)
     y = x * 2
     _, ax = plt.subplots()
-    ax.plot(x, y, label='Example')
+    ax.plot(x, y, label='Example', linestyle='None', marker='o')
     ax.legend()
     plt.show()
 
