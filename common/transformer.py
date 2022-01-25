@@ -10,13 +10,17 @@ class Encoder(nn.Module):
         layers = (EncoderLayer() for _ in range(self.layer_count))
 
     def forward(self, inputs: torch.Tensor):
+        # Call each layer
+        # Normalize each layer
         raise NotImplementedError
 
 
 class EncoderLayer(nn.Module):
 
-    def __init__(self) -> None:
+    def __init__(self, input_size: int, nhead: int=8) -> None:
         super().__init__()
+        self.input_size = input_size
+        self.nhead = nhead
         self.attention = MultiHeadedAttention()
         self.feed_forward = nn.Sequential(
             nn.Linear(),
@@ -37,9 +41,21 @@ class Decoder(nn.Module):
         raise NotImplementedError
 
 
+class DecoderLayer(nn.Module):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def forward(self, inputs: torch.Tensor):
+        # self attention
+        # encoder-decoder attention
+        # feed forward
+        raise NotImplementedError
+
+
 class Transformer(nn.Module):
 
-    def __init__(self, encoder: Encoder, decoder: Decoder) -> None:
+    def __init__(self, num_encoder_layers: int=6, num_decoder_layers: int=6) -> None:
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
@@ -53,8 +69,9 @@ class Transformer(nn.Module):
 
 class MultiHeadedAttention(nn.Module):
 
-    def __init__(self) -> None:
+    def __init__(self, heads: int=8) -> None:
         super().__init__()
+        self.heads = heads
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
