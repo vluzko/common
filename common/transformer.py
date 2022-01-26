@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from typing import Tuple
 
 
 class Encoder(nn.Module):
@@ -68,12 +69,47 @@ class Transformer(nn.Module):
 
 
 class MultiHeadedAttention(nn.Module):
+    """Multi headed attention layer
 
-    def __init__(self, heads: int=8) -> None:
+    Attributes:
+        heads: The number of heads
+        dimension: The incoming dimension of the query, key, and value
+    """
+
+    def __init__(self, heads: int=8, dimension: int=512) -> None:
         super().__init__()
         self.heads = heads
+        self.dimension = dimension
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        assert self.dimension % self.heads == 0
+        self.head_dimension = self.dimension // self.heads
+        self.query_lin = nn.Linear()
+        self.key_lin = nn.Linear()
+        self.value_lin = nn.Linear()
+
+    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> torch.Tensor:
+        # Transform query, key, and value
+        q, k, v = inputs
+        q_t = self.query_lin(q)
+        k_t = self.key_lin(k)
+        v_t = self.value_lin(v)
+
+        # Mask if applicable
+        # dot product
         raise NotImplementedError
 
 
+class MHALinear(nn.Module):
+
+    def __init__(self, d_input: int, n_heads: int) -> None:
+        super().__init__()
+        self.d_input = d_input
+        self.n_heads = n_heads
+        self.linear = nn.Linear
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        transformed = self.linear(inputs)
+        # Reshape
+        reshaped = rearrange(transformed)
+        return reshaped
+        raise NotImplementedError
