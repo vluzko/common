@@ -1,0 +1,12 @@
+name = 'ml_common'
+description = 'Common / core ML stuff'
+version = '0.0.1'
+
+[dependencies]
+gym = "*"
+numpy = "*"
+scipy = "*"
+torch = "*"
+torchtext = "*"
+torchvision = "*"
+torchaudio = "*"
