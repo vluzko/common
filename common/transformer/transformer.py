@@ -22,10 +22,10 @@ class Encoder(nn.Module):
         layer_count: The number of layers of attention
     """
 
-    def __init__(self, layer_count: int) -> None:
+    def __init__(self, input_size: int, layer_count: int) -> None:
         super().__init__()
         self.layer_count = layer_count
-        layers = (EncoderLayer() for _ in range(self.layer_count))
+        layers = (EncoderLayer(input_size) for _ in range(self.layer_count))
 
     def forward(self, inputs: torch.Tensor):
         # Call each layer

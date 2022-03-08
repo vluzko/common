@@ -485,14 +485,14 @@ class TransformerDecoder(nn.Module):
         batch_size = encoder_outputs.size(0)
 
         if targets is not None:
-            targets = targets[targets != self.eos_id].view(batch_size, -1)
+            targets = targets[targets != self.eos_id].view(batch_size, -1)  # type: ignore
             target_length = targets.size(1)
 
             step_outputs = self.forward_step(
                 decoder_inputs=targets,
-                decoder_input_lengths=target_lengths,
+                decoder_input_lengths=target_lengths,  # type: ignore
                 encoder_outputs=encoder_outputs,
-                encoder_output_lengths=encoder_output_lengths,
+                encoder_output_lengths=encoder_output_lengths,  # type: ignore
                 positional_encoding_length=target_length,
             )
             step_outputs = self.fc(step_outputs).log_softmax(dim=-1)
@@ -514,7 +514,7 @@ class TransformerDecoder(nn.Module):
                     decoder_inputs=input_var[:, :di],
                     decoder_input_lengths=input_lengths,
                     encoder_outputs=encoder_outputs,
-                    encoder_output_lengths=encoder_output_lengths,
+                    encoder_output_lengths=encoder_output_lengths,  # type: ignore
                     positional_encoding_length=di,
                 )
                 step_output = self.fc(outputs).log_softmax(dim=-1)

@@ -113,6 +113,7 @@ def evaluate(model: nn.Module, eval_data: Tensor, bptt, criterion, ntokens) -> f
 
 
 def main():
+    model_str = 'ref'
     train_iter = WikiText2(split='train')
     tokenizer = get_tokenizer('basic_english')
     vocab = build_vocab_from_iterator(map(tokenizer, train_iter), specials=['<unk>'])
@@ -121,9 +122,9 @@ def main():
     # train_iter was "consumed" by the process of building the vocab,
     # so we have to create it again
     train_iter, val_iter, test_iter = WikiText2()
-    train_data = data_process(train_iter)
-    val_data = data_process(val_iter)
-    test_data = data_process(test_iter)
+    train_data = data_process(train_iter, vocab, tokenizer)
+    val_data = data_process(val_iter, vocab, tokenizer)
+    test_data = data_process(test_iter, vocab, tokenizer)
 
 
     batch_size = 20
@@ -141,7 +142,12 @@ def main():
     nhead = 2  # number of heads in nn.MultiheadAttention
     dropout = 0.2  # dropout probability
 
-    model_cls = transformer.Transformer if True else transformer_other_ref.TransformerModel
+    if model_str == 'other_ref':
+        model_cls = transformer_other_ref.TransformerModel
+    elif model_str == 'ref':
+        model_cls = transformer_ref.Transformer
+    elif model_str == 'mine':
+        model_cls = transformer.TransformerModel
     model = model_cls(ntokens, emsize, nhead, d_hid, nlayers, dropout).to(DEVICE)
 
 
@@ -157,7 +163,7 @@ def main():
 
     for epoch in range(1, epochs + 1):
         epoch_start_time = time.time()
-        train(model)
+        train(model, train_data, bptt, criterion, optimizer, ntokens, scheduler, epoch)
         val_loss = evaluate(model, val_data)
         val_ppl = math.exp(val_loss)
         elapsed = time.time() - epoch_start_time
