@@ -4,13 +4,28 @@ from typing import Tuple
 
 
 class Transformer(nn.Module):
+    """A multi-headed attention transformer.
 
-    def __init__(self, num_encoder_layers: int=6, num_decoder_layers: int=6) -> None:
+    Attributes:
+        n_token (int):              The number of tokens in the vocabulary.
+        d_model (int):              The dimension of the model (i.e. the dimension of the space we embed tokens into).
+        num_encoder_layers (int):   The number of encoder layers.
+        num_decoder_layers (int):   The number of decoder layers.
+    """
+
+    def __init__(self, n_token: int, d_model: int, num_encoder_layers: int=6, num_decoder_layers: int=6, n_head: int=8) -> None:
         super().__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.n_token = n_token
+        self.d_model = d_model
+        self.encoder = Encoder(d_model, n_head, num_encoder_layers)
+        self.decoder = Decoder(d_model, n_head, num_decoder_layers)
+        self.positional_embedding = PositionalEncoding(d_model=d_model, dropout=0.1)
+        self.embedding = nn.Embedding(self.n_token, self.d_model)
 
     def forward(self, inputs: torch.Tensor):
+        pos_emb = self.positional_embedding(inputs)
+        embedding = self.embedding(inputs)
+        embedded = embedding + pos_emb
         raise NotImplementedError
 
 
@@ -22,10 +37,11 @@ class Encoder(nn.Module):
         layer_count: The number of layers of attention
     """
 
-    def __init__(self, input_size: int, layer_count: int) -> None:
+    def __init__(self, input_size: int, layer_count: int, n_head: int) -> None:
         super().__init__()
+        self.n_head = n_head
         self.layer_count = layer_count
-        layers = (EncoderLayer(input_size) for _ in range(self.layer_count))
+        layers = (EncoderLayer(input_size, n_head) for _ in range(self.layer_count))
 
     def forward(self, inputs: torch.Tensor):
         # Call each layer

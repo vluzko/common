@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 
 
 def get_attn_pad_mask(inputs, input_lengths, expand_length):
-    """ mask position is set to 1 """
+    """Mask position is set to 1 """
 
     def get_transformer_non_pad_mask(inputs: Tensor, input_lengths: Tensor) -> Tensor:
         """ Padding position is set to 0, either use input_lengths or pad_id """
@@ -22,7 +22,7 @@ def get_attn_pad_mask(inputs, input_lengths, expand_length):
             raise ValueError(f"Unsupported input shape {inputs.size()}")
 
         for i in range(batch_size):
-            non_pad_mask[i, input_lengths[i]:] = 0
+            non_pad_mask[i, input_lengths[i]:] = 0  # type: ignore
 
         return non_pad_mask
 
@@ -64,7 +64,7 @@ class PositionalEncoding(nn.Module):
         self.register_buffer('pe', pe)
 
     def forward(self, length: int) -> Tensor:
-        return self.pe[:, :length]
+        return self.pe[:, :length]  # type: ignore
 
 
 class Embedding(nn.Module):
