@@ -4,11 +4,26 @@ from typing import Tuple
 
 
 class Transformer(nn.Module):
+    """
+    Attributes:
+        n_token: The number of tokens in the encoding
+        n_head: The number of heads for MHA
+        d_model: The dimension of each model
+        d_hidden: The width of the hidden layers in the decoder and encoder
+    """
 
-    def __init__(self, num_encoder_layers: int=6, num_decoder_layers: int=6) -> None:
+    def __init__(self, n_token: int, n_head:int, d_model: int, d_hidden: int, num_encoder_layers: int=6, num_decoder_layers: int=6) -> None:
         super().__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.n_token = n_token
+        self.n_head = n_head
+        self.d_model = d_model
+        self.d_hidden = d_hidden
+        self.num_encoder_layers = num_encoder_layers
+        self.num_decoder_layers = num_decoder_layers
+        self.encoder = Encoder(n_head, d_model, num_encoder_layers)
+        self.decoder = Decoder(n_head, d_model, num_decoder_layers)
+        self.token_embed = nn.Embedding(n_token, d_model)
+        self.pos_embed = PositionalEncoding(d_model)
 
     def forward(self, inputs: torch.Tensor):
         raise NotImplementedError
