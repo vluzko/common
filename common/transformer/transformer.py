@@ -26,7 +26,10 @@ class Transformer(nn.Module):
         self.pos_embed = PositionalEncoding(d_model)
 
     def forward(self, inputs: torch.Tensor):
-        raise NotImplementedError
+        embedded = self.token_embed(inputs) + self.pos_embed(inputs)
+        encoded = self.encoder(embedded)
+        decoded = self.decoder(encoded)
+        return decoded
 
 
 class Encoder(nn.Module):
