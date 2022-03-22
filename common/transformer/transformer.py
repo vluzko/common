@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import nn
 from typing import Tuple, Optional
@@ -111,20 +112,22 @@ class MultiHeadedAttention(nn.Module):
     Attributes:
         d_model: The incoming dimension of the query, key, and value
         n_head: The number of heads
-        head_dimension: The dimension of each head
+        head_dimension: The output dimension of each head
     """
 
     def __init__(self, d_model: int, n_head: int, k_dim: Optional[int]=None) -> None:
         super().__init__()
         self.d_model = d_model
         self.n_head = n_head
-        self.k_dim = k_dim if k_dim is not None else d_model
         assert self.d_model % self.n_head == 0
 
         self.head_dimension = self.d_model // self.n_head
+        # The output dimension is d_model, but really it's self.head_dimension * self.n_head
         self.query_lin = nn.Linear(d_model, d_model)
         self.key_lin = nn.Linear(d_model, d_model)
         self.value_lin = nn.Linear(d_model, d_model)
+        self.scaled_dot_prod = ScaledDotProductAttention(self.head_dimension)
+        self.linear = nn.Linear(d_model, d_model)
 
     def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> torch.Tensor:
         # Transform query, key, and value
@@ -133,26 +136,24 @@ class MultiHeadedAttention(nn.Module):
         k_t = self.key_lin(k)
         v_t = self.value_lin(v)
 
-        # Mask if applicable
-        # dot product
-        raise NotImplementedError
+        # TODO: Masking
+        dot_prod = self.scaled_dot_prod(q_t, k_t, v_t)
+
+        return self.linear(dot_prod)
 
 
-# class MHALinear(nn.Module):
+class ScaledDotProductAttention(nn.Module):
+    """Compute QK^T / sqrt(d_k)"""
+    def __init__(self, head_dimension: int) -> None:
+        super().__init__()
+        self.head_dimension = head_dimension
 
-#     def __init__(self, d_input: int, n_heads: int) -> None:
-#         super().__init__()
-#         self.d_input = d_input
-#         self.n_heads = n_heads
-#         self.linear = nn.Linear
+    def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+        scaled = torch.bmm(q, k.transpose(1, 2)) / np.sqrt(self.head_dimension)
 
-#     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-#         transformed = self.linear(inputs)
-#         # Reshape
-#         reshaped = rearrange(transformed)
-#         return reshaped
-#         raise NotImplementedError
-
+        attn = torch.softmax(scaled, dim=-1)
+        context = torch.bmm(attn, v)
+        return context
 
 
 class ResNorm(nn.Module):
