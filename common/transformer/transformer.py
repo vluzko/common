@@ -4,25 +4,6 @@ from typing import Tuple, Optional
 
 
 class Transformer(nn.Module):
-<<<<<<< HEAD
-    """A multi-headed attention transformer.
-
-    Attributes:
-        n_token (int):              The number of tokens in the vocabulary.
-        d_model (int):              The dimension of the model (i.e. the dimension of the space we embed tokens into).
-        num_encoder_layers (int):   The number of encoder layers.
-        num_decoder_layers (int):   The number of decoder layers.
-    """
-
-    def __init__(self, n_token: int, d_model: int, num_encoder_layers: int=6, num_decoder_layers: int=6, n_head: int=8) -> None:
-        super().__init__()
-        self.n_token = n_token
-        self.d_model = d_model
-        self.encoder = Encoder(d_model, n_head, num_encoder_layers)
-        self.decoder = Decoder(d_model, n_head, num_decoder_layers)
-        self.positional_embedding = PositionalEncoding(d_model=d_model, dropout=0.1)
-        self.embedding = nn.Embedding(self.n_token, self.d_model)
-=======
     """
     Attributes:
         n_token: The number of tokens in the encoding
@@ -43,20 +24,12 @@ class Transformer(nn.Module):
         self.decoder = Decoder(n_head, d_model, num_decoder_layers)
         self.token_embed = nn.Embedding(n_token, d_model)
         self.pos_embed = PositionalEncoding(d_model)
->>>>>>> cedd3d89ae016ff6472ef9e84b7fe32730d014f0
 
     def forward(self, inputs: torch.Tensor):
-<<<<<<< HEAD
-        pos_emb = self.positional_embedding(inputs)
-        embedding = self.embedding(inputs)
+        pos_emb = self.pos_embed(inputs)
+        embedding = self.token_embed(inputs)
         embedded = embedding + pos_emb
         raise NotImplementedError
-=======
-        embedded = self.token_embed(inputs) + self.pos_embed(inputs)
-        encoded = self.encoder(embedded)
-        decoded = self.decoder(encoded)
-        return decoded
->>>>>>> 5c8ac6666c7b7d4817f582eb45a5b26b66fe94ec
 
 
 # TODO: LayerNorm
@@ -69,19 +42,10 @@ class Encoder(nn.Module):
         d_model: The size of the model
         num_layers: The number of layers of attention
     """
-
-<<<<<<< HEAD
-    def __init__(self, input_size: int, layer_count: int, n_head: int) -> None:
-        super().__init__()
-        self.n_head = n_head
-        self.layer_count = layer_count
-        layers = (EncoderLayer(input_size, n_head) for _ in range(self.layer_count))
-=======
     def __init__(self, n_head: int, d_model: int, num_layers: int) -> None:
         super().__init__()
         self.num_layers = num_layers
         self.layers = (EncoderLayer(n_head, d_model) for _ in range(self.num_layers))
->>>>>>> 5c8ac6666c7b7d4817f582eb45a5b26b66fe94ec
 
     def forward(self, inputs: torch.Tensor):
 
