@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 class Transformer(nn.Module):
@@ -46,32 +46,52 @@ class Transformer(nn.Module):
 >>>>>>> cedd3d89ae016ff6472ef9e84b7fe32730d014f0
 
     def forward(self, inputs: torch.Tensor):
+<<<<<<< HEAD
         pos_emb = self.positional_embedding(inputs)
         embedding = self.embedding(inputs)
         embedded = embedding + pos_emb
         raise NotImplementedError
+=======
+        embedded = self.token_embed(inputs) + self.pos_embed(inputs)
+        encoded = self.encoder(embedded)
+        decoded = self.decoder(encoded)
+        return decoded
+>>>>>>> 5c8ac6666c7b7d4817f582eb45a5b26b66fe94ec
 
 
+# TODO: LayerNorm
 class Encoder(nn.Module):
     """A transformer encoder.
     Consists of a number of identical layers, each of which is a combination of multi-head attention and a feedforward neural network
 
     Attributes:
-        layer_count: The number of layers of attention
+        n_head: Number of heads in each layer
+        d_model: The size of the model
+        num_layers: The number of layers of attention
     """
 
+<<<<<<< HEAD
     def __init__(self, input_size: int, layer_count: int, n_head: int) -> None:
         super().__init__()
         self.n_head = n_head
         self.layer_count = layer_count
         layers = (EncoderLayer(input_size, n_head) for _ in range(self.layer_count))
+=======
+    def __init__(self, n_head: int, d_model: int, num_layers: int) -> None:
+        super().__init__()
+        self.num_layers = num_layers
+        self.layers = (EncoderLayer(n_head, d_model) for _ in range(self.num_layers))
+>>>>>>> 5c8ac6666c7b7d4817f582eb45a5b26b66fe94ec
 
     def forward(self, inputs: torch.Tensor):
-        # Call each layer
-        # Normalize each layer
-        raise NotImplementedError
+
+        val = inputs
+        for layer in self.layers:
+            val = layer(val)
+        return val
 
 
+# TODO: Normalization
 class EncoderLayer(nn.Module):
     """A single layer in a transformer encoder.
     Attributes:
@@ -79,19 +99,25 @@ class EncoderLayer(nn.Module):
         n_head: The number of heads in the multi-head attention sublayer
     """
 
-    def __init__(self, input_size: int, n_head: int=8) -> None:
+    def __init__(self, n_head: int, d_model: int, dim_linear: int=256) -> None:
         super().__init__()
-        self.input_size = input_size
+        self.d_model = d_model
         self.n_head = n_head
-        self.attention = MultiHeadedAttention()
+        self.attention = MultiHeadedAttention(n_head, d_model)
+        self.norm1 = LayerNorm(d_model)
         self.feed_forward = nn.Sequential(
-            nn.Linear(),
+            nn.Linear(d_model, dim_linear),
             nn.ReLU(),
-            nn.Linear()
+            nn.Linear(dim_linear, d_model)
         )
+        self.norm2 = LayerNorm(d_model)
 
     def forward(self, inputs: torch.Tensor):
-        raise NotImplementedError
+        attn = self.attention(inputs)
+        norm_attn = self.norm1(inputs + attn)
+
+        ff = self.feed_forward(norm_attn)
+        return self.norm1(inputs + ff)
 
 
 class Decoder(nn.Module):
@@ -119,20 +145,22 @@ class MultiHeadedAttention(nn.Module):
     """Multi headed attention layer
 
     Attributes:
-        heads: The number of heads
-        dimension: The incoming dimension of the query, key, and value
+        d_model: The incoming dimension of the query, key, and value
+        n_head: The number of heads
+        head_dimension: The dimension of each head
     """
 
-    def __init__(self, heads: int=8, dimension: int=512) -> None:
+    def __init__(self, d_model: int, n_head: int, k_dim: Optional[int]=None) -> None:
         super().__init__()
-        self.heads = heads
-        self.dimension = dimension
+        self.d_model = d_model
+        self.n_head = n_head
+        self.k_dim = k_dim if k_dim is not None else d_model
+        assert self.d_model % self.n_head == 0
 
-        assert self.dimension % self.heads == 0
-        self.head_dimension = self.dimension // self.heads
-        self.query_lin = nn.Linear()
-        self.key_lin = nn.Linear()
-        self.value_lin = nn.Linear()
+        self.head_dimension = self.d_model // self.n_head
+        self.query_lin = nn.Linear(d_model, d_model)
+        self.key_lin = nn.Linear(d_model, d_model)
+        self.value_lin = nn.Linear(d_model, d_model)
 
     def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> torch.Tensor:
         # Transform query, key, and value
@@ -146,20 +174,20 @@ class MultiHeadedAttention(nn.Module):
         raise NotImplementedError
 
 
-class MHALinear(nn.Module):
+# class MHALinear(nn.Module):
 
-    def __init__(self, d_input: int, n_heads: int) -> None:
-        super().__init__()
-        self.d_input = d_input
-        self.n_heads = n_heads
-        self.linear = nn.Linear
+#     def __init__(self, d_input: int, n_heads: int) -> None:
+#         super().__init__()
+#         self.d_input = d_input
+#         self.n_heads = n_heads
+#         self.linear = nn.Linear
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        transformed = self.linear(inputs)
-        # Reshape
-        reshaped = rearrange(transformed)
-        return reshaped
-        raise NotImplementedError
+#     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+#         transformed = self.linear(inputs)
+#         # Reshape
+#         reshaped = rearrange(transformed)
+#         return reshaped
+#         raise NotImplementedError
 
 
 
@@ -183,6 +211,15 @@ class PositionalEncoding(nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class LayerNorm(nn.Module):
+
+    def __init__(self, d_model: int) -> None:
+        self.d_model = d_model
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
