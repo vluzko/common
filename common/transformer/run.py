@@ -62,7 +62,19 @@ def get_batch(source: Tensor, i: int, bptt) -> Tuple[Tensor, Tensor]:
     return data, target
 
 
-def train(model: nn.Module, train_data, bptt, criterion, optimizer, ntokens, scheduler, epoch) -> None:
+def train(model: nn.Module, train_data: torch.Tensor, bptt, criterion, optimizer, ntokens, scheduler, epoch) -> None:
+    """Train the model
+
+    Args:
+        model (nn.Module):                  The transformer model
+        train_data (torch.Tensor):          The training data. Shape: [seq_len, batch_size]
+        bptt (int):                         The size of an individual training chunk
+        criterion (Callable):               The loss function
+        optimizer (torch.optim):            The optimizer algorithm
+        ntokens (int):                      The number of tokens in the language
+        scheduler (torch.optim.scheduler):  The learning rate scheduler
+        epoch (int):                        The current training epoch
+    """
     model.train()  # turn on train mode
     total_loss = 0.
     log_interval = 200
@@ -113,7 +125,7 @@ def evaluate(model: nn.Module, eval_data: Tensor, bptt, criterion, ntokens) -> f
 
 
 def main():
-    model_str = 'ref'
+    model_str = 'other_ref'
     train_iter = WikiText2(split='train')
     tokenizer = get_tokenizer('basic_english')
     vocab = build_vocab_from_iterator(map(tokenizer, train_iter), specials=['<unk>'])

@@ -5,7 +5,7 @@ from typing import Tuple, Optional
 
 
 class Transformer(nn.Module):
-    """
+    """An encoder-decoder transformer
     Attributes:
         n_token: The number of tokens in the encoding
         n_head: The number of heads for MHA
@@ -26,11 +26,21 @@ class Transformer(nn.Module):
         self.token_embed = nn.Embedding(n_token, d_model)
         self.pos_embed = PositionalEncoding(d_model)
 
-    def forward(self, inputs: torch.Tensor):
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Run the whole transformer
+
+        Args:
+            inputs (torch.Tensor): The input sequence. Each element is a token. Shape: [seq_len, batch_size]
+
+        Returns:
+            torch.Tensor: The decoded string
+        """
         pos_emb = self.pos_embed(inputs)
         embedding = self.token_embed(inputs)
         embedded = embedding + pos_emb
-        raise NotImplementedError
+        encoded = self.encoder(embedded)
+        decoded = self.decoder(encoded)
+        return decoded
 
 
 # TODO: LayerNorm
@@ -77,8 +87,8 @@ class EncoderLayer(nn.Module):
         )
         self.norm2 = LayerNorm(d_model)
 
-    def forward(self, inputs: torch.Tensor):
-        attn = self.attention(inputs)
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        attn = self.attention(inputs, inputs, inputs)
         norm_attn = self.norm1(inputs + attn)
 
         ff = self.feed_forward(norm_attn)
@@ -86,9 +96,17 @@ class EncoderLayer(nn.Module):
 
 
 class Decoder(nn.Module):
-
-    def __init__(self) -> None:
+    """
+    Attributes:
+        n_head: Number of heads for multi headed attention
+        d_model: Dimension of the model
+        num_layers: The number of individual decoder layers
+    """
+    def __init__(self, n_head: int, d_model: int, num_layers: int) -> None:
         super().__init__()
+        self.n_head = n_head
+        self.d_model = d_model
+        self.num_layers = num_layers
 
     def forward(self, inputs: torch.Tensor):
         raise NotImplementedError
@@ -110,9 +128,9 @@ class MultiHeadedAttention(nn.Module):
     """Multi headed attention layer
 
     Attributes:
-        d_model: The incoming dimension of the query, key, and value
-        n_head: The number of heads
-        head_dimension: The output dimension of each head
+        d_model:            The incoming dimension of the query, key, and value
+        n_head:             The number of heads
+        head_dimension:     The output dimension of each head
     """
 
     def __init__(self, d_model: int, n_head: int, k_dim: Optional[int]=None) -> None:
@@ -129,9 +147,18 @@ class MultiHeadedAttention(nn.Module):
         self.scaled_dot_prod = ScaledDotProductAttention(self.head_dimension)
         self.linear = nn.Linear(d_model, d_model)
 
-    def forward(self, inputs: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> torch.Tensor:
+    def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+        """Run MHA
+
+        Args:
+            q (torch.Tensor): Query tensor. shape: [d_model, d_model]
+            k (torch.Tensor): Key tensor. Shape: [d_model, d_model]
+            v (torch.Tensor): Value tensor. Shape: [d_model, d_model]
+
+        Returns:
+            torch.Tensor: The attention tensor
+        """
         # Transform query, key, and value
-        q, k, v = inputs
         q_t = self.query_lin(q)
         k_t = self.key_lin(k)
         v_t = self.value_lin(v)
@@ -174,8 +201,9 @@ class ResNorm(nn.Module):
 class PositionalEncoding(nn.Module):
     """Encode sequence positions"""
 
-    def __init__(self) -> None:
+    def __init__(self, d_model: int) -> None:
         super().__init__()
+        self.d_model = d_model
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
