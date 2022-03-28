@@ -9,16 +9,17 @@ class Transformer(nn.Module):
     Attributes:
         n_token: The number of tokens in the encoding
         n_head: The number of heads for MHA
-        d_model: The dimension of each model
+        d_model: The dimension of each model / the size of the embedding.
         d_hidden: The width of the hidden layers in the decoder and encoder
     """
 
-    def __init__(self, n_token: int, n_head:int, d_model: int, d_hidden: int, num_encoder_layers: int=6, num_decoder_layers: int=6) -> None:
+    def __init__(self, n_token: int, n_head: int, d_model: int, d_hidden: int, num_encoder_layers: int=6, num_decoder_layers: int=6, dropout: float=0.2) -> None:
         super().__init__()
         self.n_token = n_token
         self.n_head = n_head
         self.d_model = d_model
         self.d_hidden = d_hidden
+        self.dropout = dropout
         self.num_encoder_layers = num_encoder_layers
         self.num_decoder_layers = num_decoder_layers
         self.encoder = Encoder(n_head, d_model, num_encoder_layers)
@@ -26,7 +27,7 @@ class Transformer(nn.Module):
         self.token_embed = nn.Embedding(n_token, d_model)
         self.pos_embed = PositionalEncoding(d_model)
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """Run the whole transformer
 
         Args:
@@ -35,10 +36,10 @@ class Transformer(nn.Module):
         Returns:
             torch.Tensor: The decoded string
         """
-        pos_emb = self.pos_embed(inputs)
+        # pos_emb = self.pos_embed(inputs)
         embedding = self.token_embed(inputs)
-        embedded = embedding + pos_emb
-        encoded = self.encoder(embedded)
+        # embedded = embedding + pos_emb
+        encoded = self.encoder(embedding)
         decoded = self.decoder(encoded)
         return decoded
 
@@ -56,7 +57,7 @@ class Encoder(nn.Module):
     def __init__(self, n_head: int, d_model: int, num_layers: int) -> None:
         super().__init__()
         self.num_layers = num_layers
-        self.layers = (EncoderLayer(n_head, d_model) for _ in range(self.num_layers))
+        self.layers = nn.Sequential(*[EncoderLayer(n_head, d_model) for _ in range(self.num_layers)])
 
     def forward(self, inputs: torch.Tensor):
 
@@ -90,7 +91,8 @@ class EncoderLayer(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         attn = self.attention(inputs, inputs, inputs)
         norm_attn = self.norm1(inputs + attn)
-
+        import pdb
+        pdb.set_trace()
         ff = self.feed_forward(norm_attn)
         return self.norm1(inputs + ff)
 
@@ -107,6 +109,7 @@ class Decoder(nn.Module):
         self.n_head = n_head
         self.d_model = d_model
         self.num_layers = num_layers
+        self.layers = [DecoderLayer(n_head, d_model) for _ in range(self.num_layers)]
 
     def forward(self, inputs: torch.Tensor):
         raise NotImplementedError
@@ -114,8 +117,10 @@ class Decoder(nn.Module):
 
 class DecoderLayer(nn.Module):
 
-    def __init__(self) -> None:
+    def __init__(self, n_head: int, d_model: int) -> None:
         super().__init__()
+        self.n_head = n_head
+        self.d_model = d_model
 
     def forward(self, inputs: torch.Tensor):
         # self attention
@@ -133,7 +138,7 @@ class MultiHeadedAttention(nn.Module):
         head_dimension:     The output dimension of each head
     """
 
-    def __init__(self, d_model: int, n_head: int, k_dim: Optional[int]=None) -> None:
+    def __init__(self, n_head: int, d_model: int) -> None:
         super().__init__()
         self.d_model = d_model
         self.n_head = n_head
@@ -151,12 +156,12 @@ class MultiHeadedAttention(nn.Module):
         """Run MHA
 
         Args:
-            q (torch.Tensor): Query tensor. shape: [d_model, d_model]
-            k (torch.Tensor): Key tensor. Shape: [d_model, d_model]
-            v (torch.Tensor): Value tensor. Shape: [d_model, d_model]
+            q (torch.Tensor): Query tensor. Shape: [seq_len, batch_size, d_model]
+            k (torch.Tensor): Key tensor. Shape: [seq_len, batch_size, d_model]
+            v (torch.Tensor): Value tensor. Shape: [seq_len, batch_size, d_model]
 
         Returns:
-            torch.Tensor: The attention tensor
+            torch.Tensor: The context tensor. Shape: [seq_len, batch_size, d_model]
         """
         # Transform query, key, and value
         q_t = self.query_lin(q)
@@ -170,12 +175,22 @@ class MultiHeadedAttention(nn.Module):
 
 
 class ScaledDotProductAttention(nn.Module):
-    """Compute QK^T / sqrt(d_k)"""
+    """Compute softmax(QK^T / sqrt(d_k)) V"""
     def __init__(self, head_dimension: int) -> None:
         super().__init__()
         self.head_dimension = head_dimension
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+        """Compute attention
+
+        Args:
+            q (torch.Tensor): Query tensor. Shape: [seq_len, batch_size, d_model]
+            k (torch.Tensor): Key tensor. Shape: [seq_len, batch_size, d_model]
+            v (torch.Tensor): Value tensor. Shape: [seq_len, batch_size, d_model]
+
+        Returns:
+            torch.Tensor: The context tensor. Shape: [seq_len, batch_size, d_model]
+        """
         scaled = torch.bmm(q, k.transpose(1, 2)) / np.sqrt(self.head_dimension)
 
         attn = torch.softmax(scaled, dim=-1)
@@ -211,10 +226,22 @@ class PositionalEncoding(nn.Module):
 
 class LayerNorm(nn.Module):
 
-    def __init__(self, d_model: int) -> None:
+    def __init__(self, d_model: int, eps: float=1e-8) -> None:
+        super().__init__()
         self.d_model = d_model
+        self.eps = eps
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
+        """Layer normalization
 
+        Args:
+            inputs (torch.Tensor): Activation to normalize
+
+        Returns:
+            torch.Tensor: Normalized activation
+        """
+        mean = inputs.mean(-1, keepdim=True)
+        var = torch.square(inputs - mean).mean(-1, keepdim=True)
+        val = (inputs - mean) / torch.sqrt(var + self.eps)
+        return val
 

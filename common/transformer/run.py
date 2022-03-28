@@ -62,7 +62,7 @@ def get_batch(source: Tensor, i: int, bptt) -> Tuple[Tensor, Tensor]:
     return data, target
 
 
-def train(model: nn.Module, train_data: torch.Tensor, bptt, criterion, optimizer, ntokens, scheduler, epoch) -> None:
+def train(model: nn.Module, train_data: torch.Tensor, bptt: int, criterion, optimizer, ntokens, scheduler, epoch) -> None:
     """Train the model
 
     Args:
@@ -125,7 +125,7 @@ def evaluate(model: nn.Module, eval_data: Tensor, bptt, criterion, ntokens) -> f
 
 
 def main():
-    model_str = 'other_ref'
+    model_str = 'mine'
     train_iter = WikiText2(split='train')
     tokenizer = get_tokenizer('basic_english')
     vocab = build_vocab_from_iterator(map(tokenizer, train_iter), specials=['<unk>'])
@@ -156,11 +156,12 @@ def main():
 
     if model_str == 'other_ref':
         model_cls = transformer_other_ref.TransformerModel
+        model = model_cls(ntokens, emsize, nhead, d_hid, nlayers, dropout).to(DEVICE)
     elif model_str == 'ref':
         model_cls = transformer_ref.Transformer
     elif model_str == 'mine':
-        model_cls = transformer.TransformerModel
-    model = model_cls(ntokens, emsize, nhead, d_hid, nlayers, dropout).to(DEVICE)
+        model_cls = transformer.Transformer
+        model = transformer.Transformer(ntokens, nhead, emsize, d_hid, nlayers, nlayers, dropout).to(DEVICE)
 
 
     criterion = nn.CrossEntropyLoss()
