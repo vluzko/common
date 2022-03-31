@@ -125,7 +125,7 @@ def evaluate(model: nn.Module, eval_data: Tensor, bptt, criterion, ntokens) -> f
 
 
 def main():
-    model_str = 'mine'
+    model_str = 'other_ref'
     train_iter = WikiText2(split='train')
     tokenizer = get_tokenizer('basic_english')
     vocab = build_vocab_from_iterator(map(tokenizer, train_iter), specials=['<unk>'])

@@ -21,3 +21,10 @@ class Linear(Module):
         output = torch.matmul(input, self.weight)
         
         raise NotImplementedError
+
+
+class ReLU(Module):
+
+    pass
+
+

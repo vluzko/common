@@ -168,6 +168,8 @@ class MultiHeadedAttention(nn.Module):
         k_t = self.key_lin(k)
         v_t = self.value_lin(v)
 
+        # Reshape all to [batch_size * n_head, seq_len, d_head]
+
         # TODO: Masking
         dot_prod = self.scaled_dot_prod(q_t, k_t, v_t)
 
@@ -216,9 +218,15 @@ class ResNorm(nn.Module):
 class PositionalEncoding(nn.Module):
     """Encode sequence positions"""
 
-    def __init__(self, d_model: int) -> None:
+    def __init__(self, d_model: int, max_len: int=5000) -> None:
         super().__init__()
         self.d_model = d_model
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-np.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2] = torch.sin(position * div_term)
+        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
