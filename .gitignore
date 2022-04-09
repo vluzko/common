@@ -5,3 +5,4 @@ __pycache__/
 .github/
 .git/
 .vscode/
+.data/

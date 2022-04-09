@@ -1,16 +1,18 @@
 import math
-import pdb
 import torch
 
 from einops import rearrange
+from pathlib import Path
 from torch import nn, optim
 from torch.nn import functional
 from torch.utils.data import DataLoader, TensorDataset
 
-from typing import Optional
 
-
+DATA = Path(__file__).parent / '.data'
+DATA.mkdir(parents=True, exist_ok=True)
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+N_LAYERS = 2
+model_file = DATA / f'decoder_only_{N_LAYERS}.tch'
 
 
 class DecoderOnly(nn.Module):
@@ -54,6 +56,7 @@ class MultiHeadAttention(nn.Module):
         self.k_w = nn.Linear(d_model, d_model)
         self.v_w = nn.Linear(d_model, d_model)
         self.sdp_attn = ScaledDotProductAttn(d_model)
+        self.output_lin = nn.Linear(d_model, d_model)
         self.n_head = n_head
         assert d_model % n_head == 0
         self.d_head = d_model // n_head
@@ -72,7 +75,8 @@ class MultiHeadAttention(nn.Module):
         v_t = head_split(self.v_w(v))
 
         # Apply scaled dot product attention and concatenate heads
-        return rearrange(self.sdp_attn(q_t, k_t, v_t, mask), '(b nh) s dh -> s b (nh dh)', nh=self.n_head, dh=self.d_head)
+        resized = rearrange(self.sdp_attn(q_t, k_t, v_t, mask), '(b nh) s dh -> s b (nh dh)', nh=self.n_head, dh=self.d_head)
+        return self.output_lin(resized)
 
 
 class ScaledDotProductAttn(nn.Module):
@@ -125,7 +129,7 @@ def train(batch_size: int, d_model: int, n_head: int, n_layers: int=2, num_sampl
 
         # Construct the padding mask
         seq_mask = torch.ones((cur_batch, SEQ_LEN-1, SEQ_LEN-1)).to(DEVICE)
-        seq_mask.mul_(seq.view(batch_size, 1, SEQ_LEN)[:, :, :-1] == 16)
+        seq_mask.mul_(seq.view(cur_batch, 1, SEQ_LEN)[:, :, :-1] == 16)
         seq_mask = seq_mask.logical_or(attn_mask).repeat(n_head, 1, 1)
 
         seq = rearrange(seq, 'b s -> s b')
@@ -136,15 +140,13 @@ def train(batch_size: int, d_model: int, n_head: int, n_layers: int=2, num_sampl
         gathered_pred = torch.gather(pred, 0, index_tensor.view(7, -1, 1).expand(-1, -1, 17))
         gathered_tgt = torch.gather(seq, 0, index_tensor + 1)
         cat_probs = torch.gather(gathered_pred, 2, gathered_tgt.long().view(7, cur_batch, 1))
-        print(cat_probs.mean())
+        print(cat_probs[3:7].mean())
         loss = -torch.log(cat_probs).sum(dim=0).mean()
 
         print(loss)
 
         loss.backward()
         opt.step()
-    import pdb
-    pdb.set_trace()
     return model
 
 
@@ -192,20 +194,41 @@ def make_arithmetic_loader(batch_size: int, num_samples: int) -> DataLoader:
     return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-# train(batch_size=256, d_model=64, n_head=4, n_layers=2, num_samples=1000000)
-
-
 def eigen_analysis(d_model, n_head, n_layers, batch_size, num_samples: int=200):
     N_TOKEN = 17
     model = DecoderOnly(d_model, N_TOKEN, n_head, n_layers).to(DEVICE)
-    model.load_state_dict(torch.load('./tmp.torch'))
-    data_loader = make_arithmetic_loader(batch_size, num_samples)
+    model.load_state_dict(torch.load(str(model_file)))
+    d_head = d_model // n_head
 
-    i, (seq, _) = next(enumerate(data_loader))
+    avgs = {}
+    for j in range(n_head):
+        for i in range(n_head):
+            w_embed = model.token_embed.weight
+            w_q = (model.layers[0].self_attn.q_w.weight[:, j * d_head: (j+1) * d_head], model.layers[1].self_attn.q_w.weight[:, i * d_head: (i+1) * d_head])
+            w_k = (model.layers[0].self_attn.k_w.weight[:, j * d_head: (j+1) * d_head], model.layers[1].self_attn.k_w.weight[:, i * d_head: (i+1) * d_head])
+            w_v = (model.layers[0].self_attn.v_w.weight[:, j * d_head: (j+1) * d_head], model.layers[1].self_attn.v_w.weight[:, i * d_head: (i+1) * d_head])
+            w_o = (model.layers[0].self_attn.output_lin.weight[j * d_head: (j+1) * d_head, :], model.layers[1].self_attn.output_lin.weight[i * d_head: (i+1) * d_head, :])
 
+            first_mat = w_embed @ w_q[1] @ w_k[1].transpose(0, 1) @ w_o[0].transpose(0, 1) @ w_v[0].transpose(0, 1) @ w_embed.transpose(0, 1)
+            second_mat = model.linear.weight @ w_o[1].transpose(0, 1) @ w_v[1].transpose(0, 1) @ w_embed.transpose(0, 1)
+
+            first_eig = torch.linalg.eigvals(first_mat)
+            second_eig = torch.linalg.eigvals(second_mat)
+
+            avgs[(i, j)] = (first_eig.sum() / first_eig.abs().sum()).item(), (second_eig.sum() / second_eig.abs().sum()).item()
     import pdb
     pdb.set_trace()
-    # model = torch.load('./tmp.torch')
+            # w_ov = w_u * w_ov[2] * w_embed
+
+        # model = torch.load('./tmp.torch')
 
 
-eigen_analysis(batch_size=256, d_model=64, n_head=4, n_layers=2, num_samples=200)
+if __name__ == "__main__":
+    from sys import argv
+    if argv[1] == 'run':
+        model = train(batch_size=256, d_model=64, n_head=4, n_layers=N_LAYERS, num_samples=1000000)
+        torch.save(model.state_dict(), str(model_file))
+    elif argv[1] == 'one':
+        pass
+    else:
+        eigen_analysis(batch_size=256, d_model=64, n_head=4, n_layers=N_LAYERS, num_samples=200)
