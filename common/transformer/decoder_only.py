@@ -1,3 +1,4 @@
+from collections import defaultdict
 import math
 import torch
 
@@ -93,6 +94,7 @@ class ScaledDotProductAttn(nn.Module):
             qk_t = qk_t.masked_fill(mask, -torch.inf)
 
         sft = functional.softmax(qk_t, dim=-1)
+        self._last_sft = sft
         return torch.bmm(sft, v)
 
 
@@ -114,10 +116,17 @@ class PositionalEmbedding(nn.Module):
 
         return inputs + self.pe[:inputs.shape[0]]
 
+N_TOKEN = 17
+SEQ_LEN = 27
+def make_padding_mask(cur_batch, seq, attn_mask, n_head):
+    # Construct the padding mask
+    seq_mask = torch.ones((cur_batch, SEQ_LEN-1, SEQ_LEN-1)).to(DEVICE)
+    seq_mask.mul_(seq.view(cur_batch, 1, SEQ_LEN)[:, :, :-1] == 16)
+    seq_mask = seq_mask.logical_or(attn_mask).repeat(n_head, 1, 1)
+    return seq_mask
+
 
 def train(batch_size: int, d_model: int, n_head: int, n_layers: int=2, num_samples: int=200) -> DecoderOnly:
-    N_TOKEN = 17
-    SEQ_LEN = 27
     # load data
     data_loader = make_arithmetic_loader(batch_size, num_samples)
     model = DecoderOnly(d_model, N_TOKEN, n_head, n_layers).to(DEVICE)
@@ -127,10 +136,7 @@ def train(batch_size: int, d_model: int, n_head: int, n_layers: int=2, num_sampl
     for i, (seq, padding) in enumerate(data_loader):
         cur_batch = seq.shape[0]
 
-        # Construct the padding mask
-        seq_mask = torch.ones((cur_batch, SEQ_LEN-1, SEQ_LEN-1)).to(DEVICE)
-        seq_mask.mul_(seq.view(cur_batch, 1, SEQ_LEN)[:, :, :-1] == 16)
-        seq_mask = seq_mask.logical_or(attn_mask).repeat(n_head, 1, 1)
+        seq_mask = make_padding_mask(cur_batch, seq, attn_mask, n_head)
 
         seq = rearrange(seq, 'b s -> s b')
         pred = model(seq[:-1], seq_mask)
@@ -147,6 +153,42 @@ def train(batch_size: int, d_model: int, n_head: int, n_layers: int=2, num_sampl
 
         loss.backward()
         opt.step()
+    return model
+
+
+def attn_analysis(batch_size: int, d_model: int, n_head: int, n_layers: int=2, num_samples: int=200) -> DecoderOnly:
+    data_loader = make_arithmetic_loader(batch_size, num_samples)
+    model = DecoderOnly(d_model, N_TOKEN, n_head, n_layers).to(DEVICE)
+    model.load_state_dict(torch.load(model_file))
+    model.eval()
+    attn_mask = torch.triu(torch.ones((SEQ_LEN - 1, SEQ_LEN - 1)), diagonal=1).to(DEVICE)
+    range_tensor = torch.arange(7, 0, -1).view(1, -1).to(DEVICE)
+
+    sfts = defaultdict(list)
+    for i, (seq, padding) in enumerate(data_loader):
+        cur_batch = seq.shape[0]
+
+        seq_mask = make_padding_mask(cur_batch, seq, attn_mask, n_head)
+
+        seq = rearrange(seq, 'b s -> s b')
+        pred = model(seq[:-1], seq_mask)
+
+        sft = model.layers[0].self_attn.sdp_attn._last_sft
+
+        # Annoying complicated indexing to avoid dealing with one-hot encoding
+        # index_tensor = (((SEQ_LEN - 1) - padding) - range_tensor).transpose(0, 1)
+
+        end = SEQ_LEN - 1 - padding.item()
+        start = end - 7
+        attend_rows = sft[:, start: end, :]
+        sfts[padding.item()].append(attend_rows)
+        # gathered_pred = torch.gather(pred, 0, index_tensor.view(7, -1, 1).expand(-1, -1, 17))
+        # gathered_tgt = torch.gather(seq, 0, index_tensor + 1)
+        # cat_probs = torch.gather(gathered_pred, 2, gathered_tgt.long().view(7, cur_batch, 1))
+        # loss = -torch.log(cat_probs).sum(dim=0).mean()
+
+    import pdb
+    pdb.set_trace()
     return model
 
 
@@ -194,13 +236,16 @@ def make_arithmetic_loader(batch_size: int, num_samples: int) -> DataLoader:
     return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
-def eigen_analysis(d_model, n_head, n_layers, batch_size, num_samples: int=200):
+def eigen_analysis(d_model, n_head, n_layers, batch_size, num_samples: int=200, do_layer_2: bool=False):
     N_TOKEN = 17
     model = DecoderOnly(d_model, N_TOKEN, n_head, n_layers).to(DEVICE)
     model.load_state_dict(torch.load(str(model_file)))
     d_head = d_model // n_head
 
+
+    # Layer 2 Analysis
     avgs = {}
+    layer_1_eigs = []
     for j in range(n_head):
         for i in range(n_head):
             w_embed = model.token_embed.weight
@@ -209,18 +254,19 @@ def eigen_analysis(d_model, n_head, n_layers, batch_size, num_samples: int=200):
             w_v = (model.layers[0].self_attn.v_w.weight[:, j * d_head: (j+1) * d_head], model.layers[1].self_attn.v_w.weight[:, i * d_head: (i+1) * d_head])
             w_o = (model.layers[0].self_attn.output_lin.weight[j * d_head: (j+1) * d_head, :], model.layers[1].self_attn.output_lin.weight[i * d_head: (i+1) * d_head, :])
 
-            first_mat = w_embed @ w_q[1] @ w_k[1].transpose(0, 1) @ w_o[0].transpose(0, 1) @ w_v[0].transpose(0, 1) @ w_embed.transpose(0, 1)
-            second_mat = model.linear.weight @ w_o[1].transpose(0, 1) @ w_v[1].transpose(0, 1) @ w_embed.transpose(0, 1)
+            if do_layer_2:
+                first_mat = w_embed @ w_q[1] @ w_k[1].transpose(0, 1) @ w_o[0].transpose(0, 1) @ w_v[0].transpose(0, 1) @ w_embed.transpose(0, 1)
+                second_mat = model.linear.weight @ w_o[1].transpose(0, 1) @ w_v[1].transpose(0, 1) @ w_embed.transpose(0, 1)
 
-            first_eig = torch.linalg.eigvals(first_mat)
-            second_eig = torch.linalg.eigvals(second_mat)
+                first_eig = torch.linalg.eigvals(first_mat)
+                second_eig = torch.linalg.eigvals(second_mat)
 
-            avgs[(i, j)] = (first_eig.sum() / first_eig.abs().sum()).item(), (second_eig.sum() / second_eig.abs().sum()).item()
-    import pdb
-    pdb.set_trace()
-            # w_ov = w_u * w_ov[2] * w_embed
+                avgs[(i, j)] = (first_eig.sum() / first_eig.abs().sum()).item(), (second_eig.sum() / second_eig.abs().sum()).item()
 
-        # model = torch.load('./tmp.torch')
+        # Layer 1 Analysis
+        w_qk_circuit = w_embed @ w_q[0] @ w_k[0].transpose(0, 1) @ w_embed.transpose(0, 1)
+        eigs = torch.linalg.eigvals(w_qk_circuit)
+        layer_1_eigs.append((eigs.sum() / eigs.abs().sum()).item())
 
 
 if __name__ == "__main__":
@@ -230,5 +276,7 @@ if __name__ == "__main__":
         torch.save(model.state_dict(), str(model_file))
     elif argv[1] == 'one':
         pass
+    elif argv[1] == 'attn':
+        attn_analysis(batch_size=1, d_model=64, n_head=4, n_layers=N_LAYERS, num_samples=200)
     else:
         eigen_analysis(batch_size=256, d_model=64, n_head=4, n_layers=N_LAYERS, num_samples=200)
