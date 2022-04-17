@@ -5,4 +5,5 @@ __pycache__/
 .github/
 .git/
 .vscode/
+*.ipynb_checkpoints/
 .data/
