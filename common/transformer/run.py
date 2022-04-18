@@ -12,7 +12,8 @@ from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 
 
-from common.transformer import transformer, transformer_other_ref, transformer_ref
+from common.transformer import transformer, transformer_ref
+from common.transformer import transformer_ref
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -155,7 +156,7 @@ def main():
     dropout = 0.2  # dropout probability
 
     if model_str == 'other_ref':
-        model_cls = transformer_other_ref.TransformerModel
+        model_cls = transformer_ref.TransformerModel
         model = model_cls(ntokens, emsize, nhead, d_hid, nlayers, dropout).to(DEVICE)
     elif model_str == 'ref':
         model_cls = transformer_ref.Transformer

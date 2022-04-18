@@ -134,6 +134,8 @@ def train(batch_size: int, d_model: int, n_head: int, n_layers: int=2, num_sampl
     attn_mask = torch.triu(torch.ones((SEQ_LEN - 1, SEQ_LEN - 1)), diagonal=1).to(DEVICE)
     range_tensor = torch.arange(7, 0, -1).view(1, -1).to(DEVICE)
     for i, (seq, padding) in enumerate(data_loader):
+        seq = seq.to(DEVICE)
+        padding = padding.to(DEVICE)
         cur_batch = seq.shape[0]
 
         seq_mask = make_padding_mask(cur_batch, seq, attn_mask, n_head)
@@ -151,8 +153,13 @@ def train(batch_size: int, d_model: int, n_head: int, n_layers: int=2, num_sampl
 
         print(loss)
 
+        import pdb
+        pdb.set_trace()
         loss.backward()
+        pdb.set_trace()
+
         opt.step()
+        opt.zero_grad()
     return model
 
 
@@ -232,7 +239,7 @@ def make_arithmetic_loader(batch_size: int, num_samples: int) -> DataLoader:
         tokenized[:, 4*i+7:] = 16
         # Padding amount
         all_padding[(i-2) * num_samples: (i-1) * num_samples] = (tokenized[:, 4*i+7:]).shape[1]
-    dataset = TensorDataset(all_tokens.to(DEVICE, dtype=torch.int), all_padding.to(DEVICE))
+    dataset = TensorDataset(all_tokens.to(dtype=torch.int), all_padding)
     return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 
