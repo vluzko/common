@@ -19,7 +19,7 @@ def main():
     model = Net()
     opt = optim.Adam(model.parameters())
 
-    with profiler.profile(activities=[profiler.ProfilerActivity.CPU], record_shapes=True) as prof:
+    with profiler.profile(activities=[profiler.ProfilerActivity.CPU], record_shapes=True, profile_memory=True) as prof:
         for i in range(1000):
             in_t = torch.randn(5)
             out_t = torch.randn(5)
