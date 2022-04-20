@@ -75,17 +75,24 @@ class Network(Module):
         output = self.layer_two.forward(output)
         return output
 
-    def backward(self, loss_back: torch.Tensor):
+    def backward(self, loss_back: torch.Tensor):  # type: ignore
         sec_layer = self.layer_two.backward(loss_back)
-        act_back = self.act.backward(self.layer_two.weight)
+        act_back = self.act.backward(self.layer_two.weight, loss_back)
+        first_layer = self.layer_one.backward(act_back)
+        return first_layer, sec_layer
 
     def update(self, weights):
         raise NotImplementedError
 
 
+def make_data() -> torch.Tensor:
+    raise NotImplementedError
+
+
 def train():
     net = Network(input_dim=2, hidden_dim=2, output_dim=1)
     loss = MSELoss()
+    dataset = make_data()
 
     with torch.no_grad():
         for i, (x, y) in dataset:
