@@ -1,3 +1,4 @@
+from typing import Tuple
 import torch
 from torch import nn
 
@@ -7,7 +8,7 @@ class Module:
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
-    def backward(self, *inputs: torch.Tensor) -> torch.Tensor:
+    def cust_back(self, *inputs: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
 
 
@@ -27,7 +28,9 @@ class Linear(Module):
 
         return output + self.bias
 
-    def backward(self, next_err: torch.Tensor) -> torch.Tensor:  # type: ignore
+    def cust_back(self, next_err: torch.Tensor) -> torch.Tensor:  # type: ignore
+        import pdb
+        pdb.set_trace()
         return self._last_activation * next_err
 
 
@@ -37,7 +40,7 @@ class ReLU(Module):
         self._last_activation = input
         return input * (input > 0).float()
 
-    def backward(self, next_weight: torch.Tensor, next_err: torch.Tensor) -> torch.Tensor:  # type: ignore
+    def cust_back(self, next_weight: torch.Tensor, next_err: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
         Equation: W_{l+1}^T * error hadamard derivative(ReLU)(last_act)
         """
@@ -54,7 +57,7 @@ class MSELoss(Module):
         self._target = target
         return torch.mean((input - target) ** 2)
 
-    def backward(self):
+    def cust_back(self):
         grad_act = 2 * (self._last_activation - self._target)
         return grad_act
 
@@ -75,31 +78,38 @@ class Network(Module):
         output = self.layer_two.forward(output)
         return output
 
-    def backward(self, loss_back: torch.Tensor):  # type: ignore
-        sec_layer = self.layer_two.backward(loss_back)
-        act_back = self.act.backward(self.layer_two.weight, loss_back)
-        first_layer = self.layer_one.backward(act_back)
+    def cust_back(self, loss_back: torch.Tensor):  # type: ignore
+        sec_layer = self.layer_two.cust_back(loss_back)
+        act_back = self.act.cust_back(self.layer_two.weight, loss_back)
+        first_layer = self.layer_one.cust_back(act_back)
         return first_layer, sec_layer
 
-    def update(self, weights):
-        raise NotImplementedError
+    def update(self, weights, lr: float=0.0001):
+        w1, w2 = weights
+        self.layer_one.weight -= lr * w1
+        self.layer_two.weight -= lr * w2
 
 
-def make_data() -> torch.Tensor:
-    raise NotImplementedError
+def make_data(size: int=1000) -> Tuple[torch.Tensor, torch.Tensor]:
+    ins = torch.arange(size * 2).float().view(size, 2)
+    outs = torch.sin(ins)
+    outs[:, 1] = torch.cos(ins[:, 0])
+    return ins, outs
 
 
 def train():
     net = Network(input_dim=2, hidden_dim=2, output_dim=1)
     loss = MSELoss()
-    dataset = make_data()
+    ins, outs = make_data()
 
     with torch.no_grad():
-        for i, (x, y) in dataset:
+        for i, (x, y) in enumerate(zip(ins, outs)):
             output = net.forward(x)
-            loss = loss.forward(x, y)
-            loss_back = loss.backward()
-            updates = net.backward(loss_back)
+            loss_val = loss.forward(x, y)
+            loss_back = loss.cust_back()
+            updates = net.cust_back(loss_back)
+            net.update(updates)
+            print(i)
 
 
 if __name__ == '__main__':
