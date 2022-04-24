@@ -151,7 +151,7 @@ def train(size: int=10) -> None:
         net.update(updates)
 
 
-def lin_train(size: int=100, epochs: int = 1000, lr=1e-5) -> None:
+def linear_train(size: int=100, epochs: int = 1000, lr=1e-5) -> None:
     torch.manual_seed(1)
     loss = MSELoss()
     ins, outs, weight = make_lin_data(size)
@@ -160,11 +160,7 @@ def lin_train(size: int=100, epochs: int = 1000, lr=1e-5) -> None:
     with torch.no_grad():
         tnet.weight.copy_(net.weight)
         tnet.bias.copy_(net.bias)
-    # net = Network(input_dim=ins.shape[1], hidden_dim=8, output_dim=outs.shape[1])
-    # tnet = TorchNet(input_dim=ins.shape[1], hidden_dim=8, output_dim=outs.shape[1])
-    # tnet.copy_weights(net)
     opt = optim.SGD(tnet.parameters(), lr=lr)
-    # with torch.no_grad():
     for j in range(epochs):
         indices = torch.randperm(ins.shape[0])
         ins = ins[indices]
@@ -184,12 +180,9 @@ def lin_train(size: int=100, epochs: int = 1000, lr=1e-5) -> None:
             opt.zero_grad()
         print(t_loss.item())
         print(loss_val.item())
-        # print(net.weight)
         lr *= 0.99
-    import pdb
-    pdb.set_trace()
 
 
 
 if __name__ == '__main__':
-    lin_train()
+    train()
