@@ -185,4 +185,4 @@ def linear_train(size: int=100, epochs: int = 1000, lr=1e-5) -> None:
 
 
 if __name__ == '__main__':
-    train()
+    linear_train()
