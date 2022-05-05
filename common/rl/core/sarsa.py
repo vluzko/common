@@ -52,7 +52,7 @@ class Model(nn.Module):
         return torch.argmax(self.forward(state)).item()
 
 
-def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-2, gamma: float=0.95, eps: float=0.5):
+def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-2, gamma: float=0.999, eps: float=0.5):
 
     opt = optim.Adam(model.parameters(), lr=lr)
     returns = []
@@ -75,7 +75,7 @@ def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-2, gamma:
                 state = torch.from_numpy(state).float().to(DEVICE)
 
                 next_val_est = reward + gamma * model.policy(state)[0] - value  # type: ignore
-            loss = functional.mse_loss(value, next_val_est)
+            loss = functional.huber_loss(value, next_val_est)
             loss.backward()
             opt.step()
             opt.zero_grad()
