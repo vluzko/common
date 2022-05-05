@@ -1,5 +1,7 @@
 import gym
+import numpy as np
 import torch
+from matplotlib import pyplot as plt
 from torch import nn, optim, distributions
 from torch.nn import functional
 
@@ -28,6 +30,12 @@ class Model(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         x = self.layers(inputs)
         return x
+
+
+def plot_returns(returns: np.ndarray):
+    fig, ax = plt.subplots()
+    ax.scatter(np.arange(len(returns)), returns)
+    plt.show()
 
 
 def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-4, gamma: float=0.95):
