@@ -52,25 +52,42 @@ class Model(nn.Module):
         return torch.argmax(self.forward(state)).item()
 
 
-def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-5, gamma: float=0.95):
+def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-2, gamma: float=0.95, eps: float=0.5):
 
     opt = optim.Adam(model.parameters(), lr=lr)
+    returns = []
     for i in range(max_steps):
         done = False
         state = torch.from_numpy(env.reset()).float().to(DEVICE)
+        ret = 0
+        cur_gam = gamma
         while not done:
-            value, action = model.policy(state)  # type: ignore
+            values = model(state)  # type: ignore
 
-            state, reward, done, _ = env.step(action)
-            state = torch.from_numpy(state).float().to(DEVICE)
             with torch.no_grad():
+            # epsilon-greedy
+                if np.random.uniform() < eps:
+                    action = np.random.randint(len(values))
+                else:
+                    action = torch.argmax(values).item()  # type: ignore
+                value = values[action]
+                state, reward, done, _ = env.step(action)
+                state = torch.from_numpy(state).float().to(DEVICE)
+
                 next_val_est = reward + gamma * model.policy(state)[0] - value  # type: ignore
             loss = functional.mse_loss(value, next_val_est)
+            # print(next_val_est, value)
+            # print(loss.item())
             loss.backward()
             opt.step()
             opt.zero_grad()
+            ret += reward
+            # cur_gam *= gamma
+        model.eps *= 0.99  # type: ignore
+        returns.append(ret)
+        # print(ret)
 
-    return model
+    return model, np.array(returns)
 
 
 def evaluate(env: gym.Env, model: nn.Module, gamma: float=0.95) -> np.ndarray:
@@ -87,6 +104,7 @@ def evaluate(env: gym.Env, model: nn.Module, gamma: float=0.95) -> np.ndarray:
             ret += cur_gam * reward
             cur_gam *= gamma
         returns.append(ret)
+        print(ret)
     return np.array(returns)
 
 
@@ -95,6 +113,6 @@ if __name__ == "__main__":
     env = gym.make('CartPole-v1')
     model = Model(env.observation_space.shape[0], env.action_space.n).to(DEVICE)
     T = 1000
-    model = train(env, model, T)
-    returns = evaluate(env, model)
+    model, returns = train(env, model, T)
+    # returns = evaluate(env, model)
     plot_returns(returns)
