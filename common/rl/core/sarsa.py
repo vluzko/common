@@ -76,8 +76,6 @@ def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-2, gamma:
 
                 next_val_est = reward + gamma * model.policy(state)[0] - value  # type: ignore
             loss = functional.mse_loss(value, next_val_est)
-            # print(next_val_est, value)
-            # print(loss.item())
             loss.backward()
             opt.step()
             opt.zero_grad()
@@ -85,7 +83,6 @@ def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-2, gamma:
             # cur_gam *= gamma
         model.eps *= 0.99  # type: ignore
         returns.append(ret)
-        # print(ret)
 
     return model, np.array(returns)
 

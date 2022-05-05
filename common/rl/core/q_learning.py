@@ -1,5 +1,7 @@
 import gym
+import numpy as np
 import torch
+from matplotlib import pyplot as plt
 from torch import nn, optim, distributions
 from torch.nn import functional
 
@@ -30,21 +32,31 @@ class Model(nn.Module):
         return x
 
 
+def plot_returns(returns: np.ndarray):
+    fig, ax = plt.subplots()
+    ax.scatter(np.arange(len(returns)), returns)
+    plt.show()
+
+
 def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-4, gamma: float=0.95):
 
-    state = torch.from_numpy(env.reset()).float().to(DEVICE)
     opt = optim.Adam(model.parameters(), lr=lr)
-
+    reward_sum = []
     for i in range(max_steps):
         action = model(state)
+        done = False
+        state = torch.from_numpy(env.reset()).float().to(DEVICE)
+        total_reward = 0
+        while not done:
+            state, reward, done, _ = env.step(action)
+            state = torch.from_numpy(state).float().to(DEVICE)
 
-        state, reward, done, _ = env.step(action)
-        state = torch.from_numpy(state).float().to(DEVICE)
-
-        loss = 0
-        loss.backward()
-        opt.step()
-        opt.zero_grad()
+            loss = 0
+            loss.backward()
+            opt.step()
+            opt.zero_grad()
+            total_reward += reward
+        reward_sum.append(total_reward)
 
 
 if __name__ == "__main__":
