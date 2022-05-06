@@ -1,7 +1,10 @@
+import cProfile
+import pstats
 import gym
 import torch
 from torch import nn, optim, distributions
 from torch.nn import functional
+from torch.profiler import profile, record_function, ProfilerActivity
 
 from typing import List
 
@@ -36,6 +39,8 @@ def train(env: gym.Env, policy: nn.Module, trajectories: int, lr: float=1e-4, ga
 
     opt = optim.Adam(policy.parameters(), lr=lr)
 
+    # with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+    #     with record_function('training'):
     for i in range(trajectories):
         state = torch.from_numpy(env.reset()).float().to(DEVICE)
         done = False
@@ -64,8 +69,9 @@ def train(env: gym.Env, policy: nn.Module, trajectories: int, lr: float=1e-4, ga
         opt.step()
         opt.zero_grad()
 
-        if i % 50 == 0:
-            print(f'{len(rewards)}')
+                # if i % 50 == 0:
+                #     print(f'{len(rewards)}')
+    # print(prof.key_averages().table(sort_by='cuda_time_total', row_limit=50))
 
 
 def calculate_returns(rewards: List[int], gamma: float) -> torch.Tensor:
@@ -80,5 +86,11 @@ def calculate_returns(rewards: List[int], gamma: float) -> torch.Tensor:
 if __name__ == "__main__":
     env = gym.make('CartPole-v1')
     policy = Model(env.observation_space.shape[0], env.action_space.n).to(DEVICE)
-    T = 10000
+    T = 1000
+    profiler = cProfile.Profile()
+    profiler.enable()
     train(env, policy, T)
+    profiler.disable()
+    stats = pstats.Stats(profiler)
+    stats.sort_stats('tottime').print_stats(50)
+    # profiler.print_stats(sort='time')
