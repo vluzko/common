@@ -11,3 +11,10 @@ def test_nll():
     mine = losses.nll_loss(x, y)
     theirs = functional.nll_loss(x, y.view(batch))
     assert torch.isclose(mine, theirs)
+
+
+def kl_loss():
+    k = 5
+    batch = 3
+    x = torch.randn(batch, k)
+    
