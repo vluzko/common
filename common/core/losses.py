@@ -3,9 +3,7 @@ import torch
 
 
 def nll_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    import pdb
-    pdb.set_trace()
-    return 
+    return torch.mean(-torch.take_along_dim(output, target, dim=1))
     raise NotImplementedError
 
 

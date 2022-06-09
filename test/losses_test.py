@@ -4,9 +4,10 @@ from common.core import losses
 
 
 def test_nll():
-    K = 5
-    x = functional.log_softmax(torch.randn(K))
-    y = torch.zeros(K)
-    y[3] = 1
+    k = 5
+    batch = 3
+    x = functional.log_softmax(torch.randn(batch, k), dim=1)
+    y = torch.randint(0, k, (batch, 1))
     mine = losses.nll_loss(x, y)
-    theirs = functional.nll_loss(x, y)
+    theirs = functional.nll_loss(x, y.view(batch))
+    assert torch.isclose(mine, theirs)
