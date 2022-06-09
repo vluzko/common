@@ -183,6 +183,40 @@ def linear_train(size: int=100, epochs: int = 1000, lr=1e-5) -> None:
         lr *= 0.99
 
 
+def relu_linear_train(size: int=100, epochs: int = 1000, lr=1e-5):
+    torch.manual_seed(1)
+    loss = MSELoss()
+    ins, outs, weight = make_lin_data(size)
+    net = Linear(input_dim=ins.shape[1], output_dim=outs.shape[1])
+    act = ReLU()
+    tnet = nn.Linear(ins.shape[1], outs.shape[1])
+    tact = nn.ReLU()
+    with torch.no_grad():
+        tnet.weight.copy_(net.weight)
+        tnet.bias.copy_(net.bias)
+    opt = optim.SGD(tnet.parameters(), lr=lr)
+    for j in range(epochs):
+        indices = torch.randperm(ins.shape[0])
+        ins = ins[indices]
+        outs = outs[indices]
+        for i, (x, y) in enumerate(zip(ins, outs)):
+            output = act(net.forward(x))
+            tout = tact(tnet(x))
+            # toutput = tnet(x)
+            loss_val = loss.forward(output, y)
+            t_loss = functional.mse_loss(tout, y)
+            # assert torch.isclose(t_loss, loss_val)
+            loss_back = loss.cust_back()
+            updates = net.cust_back(loss_back)
+            net.weight -= lr * updates.transpose(0, 1)
+            t_loss.backward()
+            opt.step()
+            opt.zero_grad()
+        print(t_loss.item())
+        print(loss_val.item())
+        lr *= 0.99
+    raise NotImplementedError
+
 
 if __name__ == '__main__':
     linear_train()
