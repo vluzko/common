@@ -21,6 +21,7 @@ def kl_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 def bce_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    """Binary cross entropy loss"""
     raise NotImplementedError
 
 
@@ -29,7 +30,7 @@ def bce_loss_logits(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 def mse_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    raise NotImplementedError
+    return torch.mean(torch.sum((target-output)**2, dim=1))
 
 
 def poisson_nll(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
