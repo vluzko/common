@@ -30,7 +30,13 @@ def bce_loss_logits(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 def mse_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    return torch.mean(torch.sum((target-output)**2, dim=1))
+    """Mean squared error loss
+
+    Arguments:
+        output: any tensor
+        target: any tensor (shapes must match)
+    """
+    return torch.mean((target-output)**2)
 
 
 def poisson_nll(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
