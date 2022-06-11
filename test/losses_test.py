@@ -16,5 +16,8 @@ def test_nll():
 def kl_loss():
     k = 5
     batch = 3
-    x = torch.randn(batch, k)
-    
+    x = functional.log_softmax(torch.randn(batch, k), dim=1)
+    y = functional.softmax(torch.randn(batch, k))
+    mine = losses.kl_loss(x, y)
+    theirs =  functional.kl_div(x, y)
+    assert torch.isclose(mine, theirs)
