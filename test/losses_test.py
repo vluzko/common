@@ -31,3 +31,15 @@ def test_mse_loss():
     mine = losses.mse_loss(x, y)
     theirs =  functional.mse_loss(x, y)
     assert torch.isclose(mine, theirs)
+
+
+def test_bce_loss():
+    k = 5
+    batch = 3
+    x = torch.softmax(torch.randn(batch, k), dim=1)
+    y = torch.empty((batch, k)).random_(2)
+    mine = losses.bce_loss(x, y)
+    import pdb
+    pdb.set_trace()
+    theirs = functional.binary_cross_entropy(x, y)
+    assert torch.isclose(mine, theirs)

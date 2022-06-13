@@ -1,5 +1,6 @@
 """Common loss functions"""
 import torch
+import torchtyping
 
 
 def nll_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -13,7 +14,7 @@ def kl_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """KL divergence loss
     Assumes output is in log probability space.
 
-    Arguments:
+    Args:
         output: The output of a neural network in log probability space
         target: The target distribution in probability space
     """
@@ -21,8 +22,13 @@ def kl_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 def bce_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    """Binary cross entropy loss"""
-    raise NotImplementedError
+    """Binary cross entropy loss
+
+    Args:
+        output: Logits for each class
+        target: Indices of correct classes
+    """
+    return torch.mean(-(torch.log(output) * target + torch.log(1 - output) * (1 - target)))
 
 
 def bce_loss_logits(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -32,7 +38,7 @@ def bce_loss_logits(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 def mse_loss(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """Mean squared error loss
 
-    Arguments:
+    Args:
         output: any tensor
         target: any tensor (shapes must match)
     """
