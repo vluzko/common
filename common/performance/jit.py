@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.nn import functional
 from time import time
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -9,10 +10,11 @@ class NoOpt(nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
-        self.layers = nn.Sequential(*[nn.Linear(10, 10) for _ in range(10)])
+        self.layer = nn.Linear(4, 4)
 
-    def forward(self, x):
-        return self.layers(x)
+    def forward(self, x, h):
+        new_h = torch.tanh(self.layer(x) + h)
+        return new_h, new_h
 
 
 
@@ -39,19 +41,32 @@ my_cell = MyCell2()
 x, h = torch.rand(3, 4), torch.rand(3, 4)
 traced_cell = torch.jit.trace(my_cell, (x, h))
 
+batch_size = 256
+n = 10000
 start1 = time()
-for i in range(100):
-    x, h = torch.rand(3, 4), torch.rand(3, 4)
-    traced_cell(x, h)
+opt = torch.optim.Adam(traced_cell.parameters())
+for i in range(n):
+    x, h = torch.rand(batch_size, 4), torch.rand(batch_size, 4)
+
+    new_x, new_h = traced_cell(x, h)
+    loss = functional.mse_loss(new_h, h)
+    loss.backward()
+    opt.step()
+    opt.zero_grad()
 end1 = time()
 print(end1 - start1)
 
 
-no_opt = NoOpt()
+no_opt = MyCell2()
 start2 = time()
-for i in range(100):
-    x, h = torch.rand(3, 4), torch.rand(3, 4)
-    no_opt(x)
+opt1 = torch.optim.Adam(no_opt.parameters())
+for i in range(n):
+    x, h = torch.rand(batch_size, 4), torch.rand(batch_size, 4)
+    new_x, new_h = no_opt(x, h)
+    loss = functional.mse_loss(new_h, h)
+    loss.backward()
+    opt.step()
+    opt.zero_grad()
 
 end2=time()
 print(end2 - start2)
