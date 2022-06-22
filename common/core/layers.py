@@ -13,8 +13,9 @@ class MyLayerNorm(nn.Module):
 
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        mean = inputs.mean(dim=-1)
-        normalized = (inputs-mean) / (torch.sqrt(inputs.var(dim=-1)) + 1e-6)
+        mean = inputs.mean(dim=-1).view(*inputs.shape[:-1], 1)
+        var = inputs.var(unbiased=False, dim=-1).view(*inputs.shape[:-1], 1)
+        normalized = (inputs-mean) / (torch.sqrt(var + 1e-5))
         return normalized
 
 
@@ -25,4 +26,6 @@ class MyBatchNorm(nn.Module):
         super().__init__()
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
+        mean = inputs.mean(dim=0)
+        var = inputs.var(unbiased=False, dim=0)
+        return (inputs - mean) / (torch.sqrt(var + 1e-5))
