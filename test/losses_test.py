@@ -3,6 +3,10 @@ from torch.nn import functional
 from common.core import losses
 
 
+def compare_losses(x: torch.Tensor, y: torch.Tensor, mine, theirs):
+    assert torch.isclose(mine(x, y), theirs(x, y))
+
+
 def test_nll():
     k = 5
     batch = 3
@@ -28,9 +32,7 @@ def test_mse_loss():
     batch = 3
     x = torch.randn(batch, k)
     y = torch.randn(batch, k)
-    mine = losses.mse_loss(x, y)
-    theirs =  functional.mse_loss(x, y)
-    assert torch.isclose(mine, theirs)
+    compare_losses(x, y, losses.mse_loss, functional.mse_loss)
 
 
 def test_bce_loss():
@@ -38,8 +40,4 @@ def test_bce_loss():
     batch = 3
     x = torch.softmax(torch.randn(batch, k), dim=1)
     y = torch.empty((batch, k)).random_(2)
-    mine = losses.bce_loss(x, y)
-    import pdb
-    pdb.set_trace()
-    theirs = functional.binary_cross_entropy(x, y)
-    assert torch.isclose(mine, theirs)
+    compare_losses(x, y, losses.bce_loss, functional.binary_cross_entropy)
