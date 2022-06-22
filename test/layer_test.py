@@ -15,8 +15,9 @@ def compare_layers(mine: nn.Module, theirs: nn.Module):
 
 
 def test_layer_norm():
-    compare_layer_classes(layers.MyLayerNorm, nn.LayerNorm)
+    compare_layers(layers.MyLayerNorm(), nn.LayerNorm(2))
 
 
 def test_batch_norm():
-    compare_layer_classes(layers.MyBatchNorm, nn.BatchNorm1d)
+
+    compare_layers(layers.MyBatchNorm(), nn.BatchNorm1d(2))
