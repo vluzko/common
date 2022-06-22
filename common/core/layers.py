@@ -13,7 +13,9 @@ class MyLayerNorm(nn.Module):
 
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
+        mean = inputs.mean(dim=-1)
+        normalized = (inputs-mean) / (torch.sqrt(inputs.var(dim=-1)) + 1e-6)
+        return normalized
 
 
 class MyBatchNorm(nn.Module):
