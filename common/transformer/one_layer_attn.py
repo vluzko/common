@@ -27,16 +27,24 @@ class OneLayerAttn(nn.Module):
 
 def load_data():
     # Load some text dataset
-    raise NotImplementedError
+    data_iter = torchtext.datasets.IMDB(split='train')
+    return data_iter
 
 
 def train():
-    # Make model
-    # Make optim
-    # Run through dataset
-    # Update with bce
-    # Return model
-    raise NotImplementedError
+    model = OneLayerAttn()
+    opt = optim.Adam(model.parameters())
+    data = load_data()
+
+    for i, (data, target) in enumerate(data):
+        # Masking
+        output = model(data)
+        loss = functional.binary_cross_entropy(output, target)
+        loss.backward()
+        opt.step()
+        opt.zero_grad()
+
+    return model
 
 
 def analyze():
@@ -51,8 +59,7 @@ def nat_contrib():
 
 
 def main():
-    data_iter = torchtext.datasets.IMDB(split='train')
-    raise NotImplementedError
+    train()
 
 
 if __name__ == "__main__":
