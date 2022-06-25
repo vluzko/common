@@ -10,9 +10,11 @@ from torchtyping import TensorType
 class OneLayerAttn(nn.Module):
     """A single attention only layer module"""
 
-    def __init__(self, d_model: int) -> None:
+    def __init__(self, d_model: int, n_head: int) -> None:
         super().__init__()
         self.d_model = d_model
+        self.n_head = n_head
+        assert self.model % self.n_head == 0
         self.w_k = nn.Linear(d_model, d_model)
         self.w_q = nn.Linear(d_model, d_model)
         self.w_v = nn.Linear(d_model, d_model)
@@ -25,6 +27,33 @@ class OneLayerAttn(nn.Module):
         raise NotImplementedError
 
 
+class PosEncode(nn.Module):
+    """Positional encoding"""
+
+    def __init__(self, k, d) -> None:
+        super().__init__()
+        raise NotImplementedError
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class Model(nn.Module):
+    """Wrapper around one layer attention"""
+
+    def __init__(self, vocab_size: int, d_model: int=256) -> None:
+        super().__init__()
+        self.one_layer = OneLayerAttn(d_model, 8)
+        self.embed = nn.Embedding(vocab_size, d_model)
+        self.pos = PosEncode()
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        embedded = self.embed(inputs)
+        # Positional encoding
+        encoded = self.pos(embedded) + embedded
+        return self.one_layer(encoded)
+
+
 def load_data():
     # Load some text dataset
     data_iter = torchtext.datasets.IMDB(split='train')
@@ -32,7 +61,7 @@ def load_data():
 
 
 def train():
-    model = OneLayerAttn()
+    model = Model()
     opt = optim.Adam(model.parameters())
     data = load_data()
 
