@@ -13,6 +13,8 @@ DATA = Path(__file__).parent / '.data'
 DATA.mkdir(parents=True, exist_ok=True)
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 N_LAYERS = 2
+N_TOKEN = 17
+SEQ_LEN = 27
 model_file = DATA / f'decoder_only_{N_LAYERS}.tch'
 
 
@@ -116,8 +118,6 @@ class PositionalEmbedding(nn.Module):
 
         return inputs + self.pe[:inputs.shape[0]]
 
-N_TOKEN = 17
-SEQ_LEN = 27
 def make_padding_mask(cur_batch, seq, attn_mask, n_head):
     # Construct the padding mask
     seq_mask = torch.ones((cur_batch, SEQ_LEN-1, SEQ_LEN-1)).to(DEVICE)

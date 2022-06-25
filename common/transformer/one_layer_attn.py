@@ -45,7 +45,7 @@ class Model(nn.Module):
         super().__init__()
         self.one_layer = OneLayerAttn(d_model, 8)
         self.embed = nn.Embedding(vocab_size, d_model)
-        self.pos = PosEncode()
+        self.pos = PosEncode(d_model)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         embedded = self.embed(inputs)
