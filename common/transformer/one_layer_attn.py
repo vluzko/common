@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import torch
 import torchtext
@@ -29,13 +30,22 @@ class OneLayerAttn(nn.Module):
 
 class PosEncode(nn.Module):
     """Positional encoding"""
+    pe: torch.Tensor
 
-    def __init__(self, k, d) -> None:
+    def __init__(self, d_model:int, max_len: int=2000) -> None:
         super().__init__()
-        raise NotImplementedError
+        self.max_len = max_len
+        numerator = torch.arange(self.max_len, dtype=torch.float32).view(-1, 1)
+        exponent = torch.arange(0, self.max_len * 2, 2, dtype=torch.float32) * (-math.log(10000) / d_model)
+        denominator = torch.exp(exponent).view(1, -1)
+        val = numerator @ denominator
+        pe = torch.empty((max_len, 1, d_model))
+        pe[:, 0, 0::2] = torch.sin(val)
+        pe[:, 0, 1::2] = torch.cos(val)
+        self.register_buffer('pe', pe)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
+        return inputs + self.pe[inputs.shape[0]:]
 
 
 class Model(nn.Module):
@@ -60,18 +70,30 @@ def load_data():
     return data_iter
 
 
-def train():
-    model = Model()
-    opt = optim.Adam(model.parameters())
+def build_vocab(data):
+    tokenizer = torchtext.data.get_tokenizer('spacy', language='en_core_web_sm')
+    iterator = (tokenizer(x) for pair in data for x in pair)
+    vocab = torchtext.vocab.build_vocab_from_iterator(iterator)
+    return vocab
+
+
+def train(d_model: int=256, lr: float=1e-5):
     data = load_data()
+    vocab = build_vocab(data)
+    vocab_size = len(vocab)
+    model = Model(vocab_size, d_model)
+    opt = optim.Adam(model.parameters(), lr=lr)
 
     for i, (data, target) in enumerate(data):
+        emb_data, emb_target = vocab(data), vocab(target)
         # Masking
         output = model(data)
         loss = functional.binary_cross_entropy(output, target)
         loss.backward()
         opt.step()
         opt.zero_grad()
+        import pdb
+        pdb.set_trace()
 
     return model
 

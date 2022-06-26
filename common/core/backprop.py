@@ -83,8 +83,8 @@ class Network(Module):
 
     def cust_back(self, loss_back: torch.Tensor):  # type: ignore
         sec_layer = self.layer_two.cust_back(loss_back)
-        import pdb
-        pdb.set_trace()
+        sec_error = None
+        raise NotImplementedError
         act_back = self.act.cust_back(self.layer_two.weight, loss_back)
         first_layer = self.layer_one.cust_back(act_back)
         return first_layer, sec_layer
@@ -232,10 +232,8 @@ def relu_linear_train(size: int=100, epochs: int = 1000, lr=1e-5):
             output = act.forward((net.forward(x)))
             tout = tact(tnet(x))
 
-            # toutput = tnet(x)
             loss_val = loss.forward(output, y)
             t_loss = functional.mse_loss(tout, y)
-            # assert torch.isclose(t_loss, loss_val)
             loss_back = loss.cust_back()
             relu_back = act.cust_back(None, loss_back)
             updates = net.cust_back(relu_back)
@@ -243,12 +241,8 @@ def relu_linear_train(size: int=100, epochs: int = 1000, lr=1e-5):
             t_loss.backward()
             opt.step()
             opt.zero_grad()
-            # assert torch.isclose(tnet.weight, net.weight).all()
-            # import pdb
-            # pdb.set_trace()
         print(t_loss.item())
         print(loss_val.item())
-        # lr *= 0.99
     raise NotImplementedError
 
 
