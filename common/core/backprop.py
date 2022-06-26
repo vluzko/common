@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Optional
 import torch
 from torch import nn, optim
 from torch.nn import functional
@@ -39,13 +39,17 @@ class ReLU(Module):
         self._last_activation = input
         return input * (input > 0).float()
 
-    def cust_back(self, next_weight: torch.Tensor, next_err: torch.Tensor) -> torch.Tensor:  # type: ignore
+    def cust_back(self, next_weight: Optional[torch.Tensor], next_err: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
         Equation: W_{l+1}^T * error hadamard derivative(ReLU)(last_act)
         """
         # grad_act = torch.ones_like(self._last_activation) * (self._last_activation > 0).float()
         act_deriv = self._last_activation > 0
-        grad_act = next_weight.transpose(0, 1) @ next_err * act_deriv
+        if next_weight is not None:
+            grad_act = next_weight.transpose(0, 1) @ next_err * act_deriv
+        else:
+            # This is just implicitly saying the next weight is the identity
+            grad_act = next_err * act_deriv
         return grad_act
 
 
@@ -183,6 +187,30 @@ def linear_train(size: int=100, epochs: int = 1000, lr=1e-5) -> None:
         lr *= 0.99
 
 
+def relu_test():
+    torch.manual_seed(1)
+    loss = MSELoss()
+    ins, outs, weight = make_lin_data(1)
+    act = ReLU()
+    tact = nn.ReLU()
+    indices = torch.randperm(ins.shape[0])
+    ins = ins[indices]
+    ins.requires_grad=True
+    outs = outs[indices]
+    for i, (x, y) in enumerate(zip(ins, outs)):
+        print(i)
+        print(x)
+        x.retain_grad()
+        output = act.forward(x)
+        tout = tact(x)
+        fake_out = torch.rand_like(x)
+        loss_val = loss.forward(output, fake_out)
+        t_loss = functional.mse_loss(tout, fake_out)
+        t_loss.backward()
+        loss_back = act.cust_back(None, loss.cust_back())
+        assert torch.isclose(loss_back, x.grad.detach()).all()
+
+
 def relu_linear_train(size: int=100, epochs: int = 1000, lr=1e-5):
     torch.manual_seed(1)
     loss = MSELoss()
@@ -200,23 +228,29 @@ def relu_linear_train(size: int=100, epochs: int = 1000, lr=1e-5):
         ins = ins[indices]
         outs = outs[indices]
         for i, (x, y) in enumerate(zip(ins, outs)):
-            output = act(net.forward(x))
+            x.retain_grad = True
+            output = act.forward((net.forward(x)))
             tout = tact(tnet(x))
+
             # toutput = tnet(x)
             loss_val = loss.forward(output, y)
             t_loss = functional.mse_loss(tout, y)
             # assert torch.isclose(t_loss, loss_val)
             loss_back = loss.cust_back()
-            updates = net.cust_back(loss_back)
+            relu_back = act.cust_back(None, loss_back)
+            updates = net.cust_back(relu_back)
             net.weight -= lr * updates.transpose(0, 1)
             t_loss.backward()
             opt.step()
             opt.zero_grad()
+            # assert torch.isclose(tnet.weight, net.weight).all()
+            # import pdb
+            # pdb.set_trace()
         print(t_loss.item())
         print(loss_val.item())
-        lr *= 0.99
+        # lr *= 0.99
     raise NotImplementedError
 
 
 if __name__ == '__main__':
-    linear_train()
+    relu_linear_train()
