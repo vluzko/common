@@ -15,7 +15,7 @@ class OneLayerAttn(nn.Module):
         super().__init__()
         self.d_model = d_model
         self.n_head = n_head
-        assert self.model % self.n_head == 0
+        assert self.d_model % self.n_head == 0
         self.w_k = nn.Linear(d_model, d_model)
         self.w_q = nn.Linear(d_model, d_model)
         self.w_v = nn.Linear(d_model, d_model)
