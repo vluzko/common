@@ -2,6 +2,7 @@ import math
 import numpy as np
 import torch
 import torchtext
+from einops import rearrange
 from torch import nn, optim
 from torch.nn import functional
 from torch.utils.data import Dataset, DataLoader
@@ -11,18 +12,23 @@ from torchtyping import TensorType
 class OneLayerAttn(nn.Module):
     """A single attention only layer module"""
 
-    def __init__(self, d_model: int, n_head: int) -> None:
+    def __init__(self, d_model: int, n_head: int, vocab_size: int) -> None:
         super().__init__()
         self.d_model = d_model
         self.n_head = n_head
         assert self.d_model % self.n_head == 0
+        self.embed = nn.Embedding(vocab_size, d_model)
+        self.pos_embed = PosEncode(d_model)
         self.w_k = nn.Linear(d_model, d_model)
         self.w_q = nn.Linear(d_model, d_model)
         self.w_v = nn.Linear(d_model, d_model)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        # embedding
+        embedded = self.pos_embed(self.embed(inputs))
+        q, k, v = self.w_k(embedded), self.w_q(embedded), self.w_v(embedded)
+        # Split into heads
         # attention
+        # Mask
         # mat mul
         # linear out
         raise NotImplementedError
@@ -53,7 +59,7 @@ class Model(nn.Module):
 
     def __init__(self, vocab_size: int, d_model: int=256) -> None:
         super().__init__()
-        self.one_layer = OneLayerAttn(d_model, 8)
+        self.one_layer = OneLayerAttn(d_model, 8, vocab_size)
         self.embed = nn.Embedding(vocab_size, d_model)
         self.pos = PosEncode(d_model)
 
@@ -77,11 +83,11 @@ def build_vocab(data):
     return vocab
 
 
-def train(d_model: int=256, lr: float=1e-5):
+def train(d_model: int=256, n_head: int=8, lr: float=1e-5):
     data = load_data()
     vocab = build_vocab(data)
     vocab_size = len(vocab)
-    model = Model(vocab_size, d_model)
+    model = Model(d_model, n_head, vocab_size)
     opt = optim.Adam(model.parameters(), lr=lr)
 
     for i, (data, target) in enumerate(data):
