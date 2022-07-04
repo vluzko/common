@@ -57,9 +57,9 @@ class PosEncode(nn.Module):
 class Model(nn.Module):
     """Wrapper around one layer attention"""
 
-    def __init__(self, vocab_size: int, d_model: int=256) -> None:
+    def __init__(self, d_model: int, n_head: int, vocab_size: int) -> None:
         super().__init__()
-        self.one_layer = OneLayerAttn(d_model, 8, vocab_size)
+        self.one_layer = OneLayerAttn(d_model, n_head, vocab_size)
         self.embed = nn.Embedding(vocab_size, d_model)
         self.pos = PosEncode(d_model)
 
