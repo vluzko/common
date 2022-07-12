@@ -81,8 +81,6 @@ def update(env: gym.Env, model: ActorCritic, polyak: float=0.9, trajs: int=100):
       next_state, reward, done, _ = env.step(action)
       next_state = torch.from_numpy(next_state, dtype=torch.float32).to(DEVICE)
   
-      # Compute actor loss (MSBE)
-
       next_action = model.p(next_state)
       next_q = model.q(next_state, next_action)
   
