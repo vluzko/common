@@ -44,9 +44,19 @@ class HH(gym.Env):
         # Output the next token
         # Output done at the end of the value
         next_token = self.cur_seq[self.idx: self.idx + self.seq_len]
-        
 
-def rl_loop(model, pref_model, dataset):
 
-    for i, (inputs, _) in enumerate(dataset):
-        reward = pref_model(inputs)
+def rl_loop(model, pref_model, dataset, num_trajectories):
+
+    # Generate data
+    trajectories = []
+    for t in range(num_trajectories):
+        trajectory = []
+        for inputs, _ in dataset:
+            output = model(inputs)
+            trajectory.append((inputs, output))
+        trajectories.append(trajectory)
+
+    for i, o in trajectories:
+        raise NotImplementedError
+

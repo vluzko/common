@@ -28,8 +28,7 @@ class Model(nn.Module):
         )
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        x = self.layers(inputs)
-        return functional.softmax(x, dim=0)
+        return functional.log_softmax(self.layers(inputs), dim=1)
 
 
 def plot_returns(returns: np.ndarray):
@@ -42,25 +41,27 @@ def train(env: gym.Env, model: nn.Module, max_steps: int, lr: float=1e-4, gamma:
 
     opt = optim.Adam(model.parameters(), lr=lr)
     reward_sum = []
+    dones = []
     for i in range(max_steps):
-        done = False
         state = torch.from_numpy(env.reset()).float().to(DEVICE)
-        action = model(state)
         total_reward = 0.0
-        while not done:
-            state, reward, done, _ = env.step(action)
-            state = torch.from_numpy(state).float().to(DEVICE)
+        logits = model(state)
+        actions = torch.distributions.Categorical(logits=logits).sample()
+        state, reward, done, _ = env.step(actions.cpu().numpy())
+        state = torch.from_numpy(state).float().to(DEVICE)
 
-            loss = 0
-            loss.backward()
-            opt.step()
-            opt.zero_grad()
-            total_reward += reward
+        loss = -torch.from_numpy(reward).float().to(DEVICE) * torch.take_along_dim(logits, actions)
+        loss.mean().backward()
+        opt.step()
+        opt.zero_grad()
+        total_reward += reward
+        print(reward)
         reward_sum.append(total_reward)
+        dones.append(done)
 
 
 if __name__ == "__main__":
-    env = gym.make('CartPole-v1')
-    model = Model(env.observation_space.shape[0], env.action_space.n).to(DEVICE)
+    env = gym.vector.make('CartPole-v1', num_envs=10)
+    model = Model(env.observation_space.shape[1], env.action_space[0].n).to(DEVICE)  # type: ignore
     T = 1000
     train(env, model, T)
