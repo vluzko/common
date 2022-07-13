@@ -61,9 +61,9 @@ def train(gamma: float=0.95):
         action = distributions.Categorical(probs=action_probs).sample()
         next_state, reward, done, _ = env.step(action.item())
         next_state = torch.from_numpy(next_state).float().to(DEVICE)
-        next_pred_value = critic(next_state)
+        next_pred_value = critic(next_state) if not done else 0
         # We update with log(pi(a, s)) * (reward + V(s') - V(s))
-        next_reward_est = reward + gamma * next_pred_value - pred_value if not done else 0
+        next_reward_est = reward + gamma * next_pred_value - pred_value
         actor_loss = -torch.log(action_probs[action]) * next_reward_est
 
         # Just MSE loss is fine
