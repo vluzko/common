@@ -25,7 +25,7 @@ def preference_model_pretrain(model, dataset):
         opt.zero_grad()
 
 
-class HH(gym.Env):
+class HH:
 
     def __init__(self, pref_model, data_loader, seq_len):
         self.pref_model = pref_model
@@ -34,16 +34,14 @@ class HH(gym.Env):
 
     def reset(self):
         self.cur_seq = self.data_loader.__next__()
-        self.idx = 0
-        toks = self.cur_seq[self.idx: self.idx + self.seq_len]
-        self.idx +=1
+        toks = self.cur_seq
         return toks
 
     def step(self, action):
-        # Record the action (the predicted next token)
-        # Output the next token
-        # Output done at the end of the value
-        next_token = self.cur_seq[self.idx: self.idx + self.seq_len]
+        toks = self.cur_seq
+        self.cur_seq = self.data_loader.__next__()
+
+        return toks
 
 
 def rl_loop(model, pref_model, dataset, num_trajectories):

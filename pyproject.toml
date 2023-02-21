@@ -1,12 +1,32 @@
-name = 'ml_common'
-description = 'Common / core ML stuff'
-version = '0.0.1'
+[project]
+name = "common"
+version = "1.0.0"
+authors = [
+  { name="Vincent Luczkow", email="vincent.luczkow@gmail.com" },
+]
+description = "Common ML code"
+readme = "README.md"
+requires-python = ">=3.6"
 
-[dependencies]
-gym = "*"
-numpy = "*"
-scipy = "*"
-torch = "*"
-torchtext = "*"
-torchvision = "*"
-torchaudio = "*"
+dependencies = [
+    "gym==0.26.2",
+    "numpy==1.23.3",
+    "torch==1.13.1",
+]
+
+
+[project.optional-dependencies]
+dev = [
+    "black==22.6.0",
+    "mypy==0.971",
+    "pandas-stubs==1.5.2",
+    "pre-commit==2.20.0",
+    "pytest==7.1.2",
+    "Sphinx==5.1.1",
+    "sphinx_rtd_theme==1.0.0"
+]
+
+
+[build-system]
+requires = ["setuptools>=63.0"]
+build-backend = "setuptools.build_meta"
