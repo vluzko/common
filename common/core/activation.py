@@ -13,5 +13,13 @@ def swish(inputs: torch.Tensor, beta: float = 1.0) -> torch.Tensor:
     return inputs / (1.0 + torch.exp(-beta * inputs))
 
 
+def gelu(inputs: torch.Tensor) -> torch.Tensor:
+    raise NotImplementedError
+
+
+def glu(inputs: torch.Tensor) -> torch.Tensor:
+    raise NotImplementedError
+
+
 def swiglu(inputs: torch.Tensor) -> torch.Tensor:
     raise NotImplementedError
